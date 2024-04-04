@@ -1,6 +1,6 @@
 from datetime import *
 from dateutil.relativedelta import *
-from Constants import *
+from BaseProjections.Constants import *
 #from utilities import *
 import pandas as pd  # to replace csv
 
@@ -9,7 +9,7 @@ import pandas as pd  # to replace csv
 
 class CExpenses():
 
-        def __init__(self, inputs, journal_entry, formats):
+        def __init__(self, inputs, journal_entry, formats, rev_expense_log):
 
                 self.Depts = []
                 self.Expenses_list = []
@@ -19,6 +19,9 @@ class CExpenses():
                 tempExpenses = []
                 dates = inputs.dates
                 self.journal_entry = journal_entry
+                self.rev_explog = rev_expense_log
+                self.transaction_log = []
+                self.inputs = inputs
 
                 fExpenses = inputs.full_path_input+kExpensesXL
 
@@ -29,8 +32,7 @@ class CExpenses():
                         Expense_list = df.values.tolist()
 
                         for expense_row in Expense_list:
-
-                                
+   
                                 expense_instance = CExpense_item(expense_row, dates)
                                 self.Expenses_list.append(expense_instance)
                                 self.Expenses_dict[expense_instance.description] = expense_instance
@@ -41,10 +43,7 @@ class CExpenses():
                                 expenses_dept = self.Expenses_list[expense_counter].dept
                                 account_to_debit = self.Expenses_list[expense_counter].ac_dr
                                 account_to_credit = self.Expenses_list[expense_counter].ac_cr
-                               
                                 expense_counter +=1
-
-                        
 
                 except FileNotFoundError:
                         print("Can't find or open accounts file", fExpenses)
@@ -58,11 +57,16 @@ class CExpenses():
                 for expense_item in self.Expenses_list:
 
                         amount = expense_item.expense_months[month] # months start at 1 not zero
-                        dr = expense_item.ac_dr
-                        cr = expense_item.ac_cr
+                        DR_acct = expense_item.ac_dr
+                        CR_acct = expense_item.ac_cr
                         
                         self.totalmonthexpenses = self.totalmonthexpenses + (amount)
-                        self.journal_entry.performJE(month, TB, dr, cr, amount)
+                        self.journal_entry.performJE(month, TB, DR_acct, CR_acct, amount)
+
+                        if self.rev_explog:
+                                log_date = self.inputs.get_date(month)
+                                log_list = [log_date, DR_acct, CR_acct, amount]
+                                self.transaction_log.append(log_list)
                                 
                 return TB
 
